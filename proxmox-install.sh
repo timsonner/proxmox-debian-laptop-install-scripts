@@ -298,7 +298,6 @@ step5_install_pve() {
     echo "[Step 5] Installing Proxmox VE packages..."
     # postfix: choose 'Local only' if you have no external mail server
     apt install -y proxmox-ve postfix open-iscsi chrony
-    sed -i "s/data.status !== 'Active'/false/" /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
