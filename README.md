@@ -62,8 +62,8 @@ ifdown wlp0s20f3 && ifup wlp0s20f3 # bounce the Wi-Fi interface
 
 **Manually configure an ethenet  interface**
 ```bash
-ip addr add 192.168.1.100/24 dev ens18 # assign ip to interface
-ip link set dev ens18 up # bring interface up
+ip addr add 192.168.1.100/24 dev ens18         # assign ip to interface
+ip link set dev ens18 up                       # bring interface up
 ip route add default via 192.168.1.1 dev ens18 # assign default route to interface
 ```
 
@@ -71,3 +71,14 @@ ip route add default via 192.168.1.1 dev ens18 # assign default route to interfa
 
 See `WIFI-WPA_CLI.md` for reference commands to scan, connect, and switch Wi-Fi networks live.
 
+## Optional - Patch (removes) "No valid subscription" pop-up >= v9.1.2
+```bash
+# Bakup proxmoxlib.js
+cp /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js.bak
+
+# Patch subscription check if statement to always return false (which means subscribed)
+sed -i "s/res\.data\.status\.toLowerCase() !== 'active'/false/g" /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+
+# Restart the web service (note: clear browser cache or open incognito/private window to verify changes)
+systemctl restart pveproxy 
+```
