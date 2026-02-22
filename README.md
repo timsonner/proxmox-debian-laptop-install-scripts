@@ -71,7 +71,7 @@ ip route add default via 192.168.1.1 dev ens18 # assign default route to interfa
 
 See `WIFI-WPA_CLI.md` for reference commands to scan, connect, and switch Wi-Fi networks live.
 
-## Optional - Patch (removes) "No valid subscription" pop-up >= v9.1.2
+### Optional - Patch (removes) "No valid subscription" pop-up >= v9.1.2
 ```bash
 # Bakup proxmoxlib.js
 cp /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js.bak
@@ -82,3 +82,33 @@ sed -i "s/res\.data\.status\.toLowerCase() !== 'active'/false/g" /usr/share/java
 # Restart the web service (note: clear browser cache or open incognito/private window to verify changes)
 systemctl restart pveproxy 
 ```
+
+### Optional - Add Proxmox certificate to the Root CA for Chrome/Edge and Firefox
+
+> By default, Proxmox uses a self-signed certificate. Browsers on Linux often ignore the system-wide certificate store and use their own NSS database. To remove the `NET::ERR_CERT_AUTHORITY_INVALID` warning, we import the Proxmox Root CA directly into browser databases.
+
+```bash
+apt update
+apt install libnss3-tools
+
+# Replace "user" with your actual username (e.g., /home/john/.pki/nssdb)
+
+# Add the certificate to regular user's NSS database (Chrome/Edge)
+certutil -d sql:/home/<user>/.pki/nssdb -A -t "C,," -n "Proxmox Root CA" -i /etc/pve/pve-root-ca.pem
+
+# Add the certificate to regular user's NSS database (Firefox). Note: characters in file will be different/randomized.
+certutil -d sql:/home/<user>/.mozilla/firefox/<random characters>.default-esr -A -t "C,," -n "Proxmox Root CA" -i /etc/pve/pve-root-ca.pem
+
+# Verify key was added
+certutil -d sql:/home/<user>/.pki/nssdb -L | grep "Proxmox"
+certutil -d sql:/home/<user>/.mozilla/firefox/<random characters>.default-esr | grep "Proxmox"
+```
+Close and reopen the browser. Navigate to the Proxmox web interface at `https://localhost:8006` the connection should now be secure and the warning will be gone.
+
+### Optional - Add Proxmox certificate to global certificate store 
+This adds the Proxmox certificate to the Linux system's global certificate store which means that system-level tools and command-line utilities will now trust the Proxmox server.
+```bash
+cp /etc/pve/pve-root-ca.pem /usr/local/share/ca-certificates/pve-root-ca.crt
+update-ca-certificates
+```
+
