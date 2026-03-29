@@ -173,3 +173,24 @@ Or bounce the interface via ifupdown:
 ```bash
 ifdown wlp0s20f3 && ifup wlp0s20f3
 ```
+
+# Quick switch known Wi-Fi networks
+```bash
+# list known networks
+wpa_cli -i wlp0s20f3 list_networks
+
+# join network
+wpa_cli -i wlp0s20f3 select_network <network id>
+
+# check status of interface
+wpa_cli -i wlp0s20f3 status
+
+# renew IP lease
+dhclient -r wlp0s20f3 && dhclient wlp0s20f3
+
+# optional bounce
+ifdown wlp0s20f3 && ifup wlp0s20f3
+
+# verify IP
+curl ipinfo.io/ip
+```
