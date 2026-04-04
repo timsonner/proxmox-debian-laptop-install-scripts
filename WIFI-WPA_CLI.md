@@ -194,3 +194,12 @@ ifdown wlp0s20f3 && ifup wlp0s20f3
 # verify IP
 curl ipinfo.io/ip
 ```
+
+# Quick VM loses IP address
+```bash
+# get an IP 
+nmcli device connect ens18
+
+# get dns
+resolvectl dns ens18 9.9.9.9 1.1.1.1
+```
