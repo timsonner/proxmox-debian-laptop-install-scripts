@@ -23,7 +23,7 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────────────────────
 # Defaults — auto-detect interface if not overridden
 # ─────────────────────────────────────────────────────────────────────────────
-WIFI_IFACE=""       # blank = auto-detect
+WIFI_IFACE="${WIFI_IFACE:-}"   # blank = auto-detect
 SSID=""
 PSK=""
 WPA3=false
@@ -37,14 +37,27 @@ require_root() {
     [[ $EUID -eq 0 ]] || { echo "ERROR: run as root (sudo)"; exit 1; }
 }
 
+list_wifi_ifaces() {
+    local iface_path iface
+
+    if command -v iw >/dev/null 2>&1; then
+        iw dev 2>/dev/null | awk '/Interface/{print $2}'
+    fi
+
+    for iface_path in /sys/class/net/*; do
+        iface=${iface_path##*/}
+        [[ -d "$iface_path/wireless" ]] && echo "$iface"
+    done | awk '!seen[$0]++'
+}
+
 wpa() {
     wpa_cli -i "$WIFI_IFACE" "$@"
 }
 
 detect_iface() {
     if [[ -z "$WIFI_IFACE" ]]; then
-        WIFI_IFACE=$(iw dev 2>/dev/null | awk '/Interface/{print $2}' | head -1)
-        [[ -z "$WIFI_IFACE" ]] && { echo "ERROR: no Wi-Fi interface detected — set WIFI_IFACE manually at the top of the script"; exit 1; }
+        WIFI_IFACE=$(list_wifi_ifaces | head -1)
+        [[ -z "$WIFI_IFACE" ]] && { echo "ERROR: no Wi-Fi interface detected — pass --iface or set WIFI_IFACE"; exit 1; }
         echo "[wifi-add-ssid] Auto-detected Wi-Fi interface: $WIFI_IFACE"
     fi
 }

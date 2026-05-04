@@ -1,14 +1,28 @@
 # Proxmox on a Laptop
 
-Scripts for installing and running Proxmox on a Debian laptop, with support for both Ethernet and Wi-Fi depending on how the device is connected.
+Scripts for installing and running Proxmox on a Debian laptop, with a networking layout that keeps both Ethernet and Wi-Fi usable at the same time.
 
 ## Scripts
 
 ### `proxmox-install.sh` — Install Proxmox
 
-Installs Proxmox VE on Debian 13 and configures networking for Ethernet and Wi-Fi.
+Installs Proxmox VE on Debian 13 and configures networking so:
 
-1. Edit the variables at the top of the script — interface names, Wi-Fi credentials, hostname, fqdn, and whether to use a fixed or automatic IP.
+- `vmbr0` bridges the wired interface and uses DHCP by default
+- Wi-Fi stays up as a standalone DHCP uplink with a lower route metric
+- Ethernet still provides direct LAN reachability when plugged in
+- VMs can optionally use `vmbr1` for Wi-Fi-backed NAT
+
+In the common case, you only need to provide hostname/FQDN and Wi-Fi credentials. The script auto-detects the wired and Wi-Fi interfaces at runtime.
+
+1. Set the values you care about. You can either edit the variables at the top of the script or pass them inline with `sudo env ...`.
+   ```bash
+   sudo env HOSTNAME=debian-xps-15 \
+            FQDN=debian-xps-15.home.arpa \
+            WIFI_SSID='MyWiFi' \
+            WIFI_PSK='correct horse battery staple' \
+            bash proxmox-install.sh step4
+   ```
 2. Run each step one at a time:
    ```bash
    sudo bash proxmox-install.sh step1   # set hostname
@@ -18,11 +32,15 @@ Installs Proxmox VE on Debian 13 and configures networking for Ethernet and Wi-F
    sudo bash proxmox-install.sh step5   # install Proxmox packages
    sudo bash proxmox-install.sh step6   # remove Debian kernel — REBOOT
    ```
-3. After the final reboot, access Proxmox at `https://localhost:8006`
+3. After the networking reboot, find the current management address with:
+   ```bash
+   ip -br addr show vmbr0
+   ```
+   Then open `https://<vmbr0-ip>:8006`
 
 ### `eth-dhcp-roam.sh` — Roam Between Networks
 
-Switches the Ethernet bridge (`vmbr0`) between a fixed IP and automatic DHCP. Useful when moving between known and unknown networks without rebooting.
+Switches the Ethernet bridge (`vmbr0`) between a fixed IP and automatic DHCP. This is mainly useful for older static installs; the current default install already keeps `vmbr0` on DHCP permanently.
 
 ```bash
 sudo bash eth-dhcp-roam.sh               # grab a DHCP lease once (temporary)
@@ -30,15 +48,16 @@ sudo bash eth-dhcp-roam.sh --permanent   # switch to DHCP permanently
 sudo bash eth-dhcp-roam.sh --restore     # restore the original fixed IP
 ```
 
-When switching between Ethernet and Wi-Fi, update each VM's network bridge in the Proxmox GUI:
-- **Ethernet** > attach VMs to `vmbr0`
-- **Wi-Fi only** > attach VMs to `vmbr1` (requires `wifi-nat-bridge.sh`)
+When switching between Ethernet and Wi-Fi, the host itself no longer needs to choose one or the other:
+- **Host networking** > Wi-Fi stays the preferred default route, Ethernet stays reachable on `vmbr0`
+- **VMs that need the wired LAN** > attach to `vmbr0`
+- **VMs that should follow Wi-Fi uplink/NAT** > attach to `vmbr1` (requires `wifi-nat-bridge.sh`)
 
 Go to: VM > Hardware > Network Device > change the bridge.
 
 ### `wifi-nat-bridge.sh` — VM Internet over Wi-Fi (Optional)
 
-Creates a second bridge (`vmbr1`) that routes VM traffic through Wi-Fi using NAT. Run this after Proxmox is installed, then attach VMs to `vmbr1` in the Proxmox GUI.
+Creates a second bridge (`vmbr1`) that routes VM traffic through Wi-Fi using NAT. Run this after Proxmox is installed, then attach VMs to `vmbr1` in the Proxmox GUI. The script auto-detects the Wi-Fi uplink and derives DNS from the current Wi-Fi lease when possible.
 
 ```bash
 sudo bash wifi-nat-bridge.sh
@@ -47,17 +66,19 @@ sudo bash wifi-nat-bridge.sh
 ## Network Layout
 
 ```
-Ethernet  >  vmbr0  >  Proxmox UI + VMs (when plugged in)
-Wi-Fi     >  vmbr1  >  Proxmox UI + VMs (when unplugged, optional)
+Wi-Fi uplink        >  wlp* (auto-detected)  >  preferred default route
+Ethernet uplink     >  vmbr0                 >  Proxmox UI + wired LAN access
+Optional VM Wi-Fi   >  vmbr1                 >  NAT/DHCP for guests
 ```
 
 ## Troubleshooting
 
 ```bash
+WIFI_IFACE=${WIFI_IFACE:-$(iw dev 2>/dev/null | awk '/Interface/{print $2; exit}')}
 ip link                            # list interface names
 ip addr show                       # show current IPs
-wpa_cli -i wlp0s20f3 status        # check Wi-Fi connection
-ifdown wlp0s20f3 && ifup wlp0s20f3 # bounce the Wi-Fi interface
+wpa_cli -i "$WIFI_IFACE" status    # check Wi-Fi connection
+ifdown "$WIFI_IFACE" && ifup "$WIFI_IFACE" # bounce the Wi-Fi interface
 ```
 
 **Manually configure an ethenet  interface**
@@ -67,7 +88,7 @@ ip link set dev ens18 up                       # bring interface up
 ip route add default via 192.168.1.1 dev ens18 # assign default route to interface
 ```
 
-> To make changes permanent, edit `/etc/network/interfaces` or use `eth-dhcp-roam.sh`.
+> To make changes permanent, edit `/etc/network/interfaces` or rerun the relevant script.
 
 See `WIFI-WPA_CLI.md` for reference commands to scan, connect, and switch Wi-Fi networks live.
 
@@ -111,4 +132,3 @@ This adds the Proxmox certificate to the Linux system's global certificate store
 cp /etc/pve/pve-root-ca.pem /usr/local/share/ca-certificates/pve-root-ca.crt
 update-ca-certificates
 ```
-

@@ -15,11 +15,12 @@ set -euo pipefail
 # STEP 0: Configuration — edit these variables to match your environment
 # ─────────────────────────────────────────────────────────────────────────────
 
-HOSTNAME="debian-laptop"        # keep existing hostname or change it
-FQDN="debian-laptop.local"      # fully-qualified domain name for Proxmox
+HOSTNAME="debian-xps-15"        # keep existing hostname or change it
+FQDN="debian-xps-15.local"      # fully-qualified domain name for Proxmox
 
-ETH_IFACE="enx083a88566fce"     # your USB/wired ethernet interface
-WIFI_IFACE="wlp0s20f3"          # your Wi-Fi interface
+#ETH_IFACE="enx083a88566fce"     # your USB/wired ethernet interface
+ETH_IFACE="enxca1fe87ff1a2"
+#WIFI_IFACE="wlp0s20f3"          # your Wi-Fi interface
 
 # Proxmox management IP (ethernet bridge vmbr0).
 # Leave blank to auto-detect from the current DHCP lease on ETH_IFACE at runtime.

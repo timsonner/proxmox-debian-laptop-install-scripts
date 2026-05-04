@@ -13,9 +13,9 @@
 
 set -euo pipefail
 
-BRIDGE="vmbr0"
-INTERFACES_FILE="/etc/network/interfaces"
-STATIC_BACKUP="/etc/network/interfaces.static-backup"
+BRIDGE="${BRIDGE:-vmbr0}"
+INTERFACES_FILE="${INTERFACES_FILE:-/etc/network/interfaces}"
+STATIC_BACKUP="${STATIC_BACKUP:-/etc/network/interfaces.static-backup}"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
